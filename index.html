@@ -1,66 +1,117 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html>
 <head>
-  <meta charset="UTF-8" />
   <title>경북여고 분실물 관리 앱</title>
+  <!-- Firebase 8 방식 SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; }
-    label, input, button { display: block; margin: 10px 0; }
-    ul { padding-left: 20px; }
-    footer {
-      margin-top: 30px;
-      font-size: 12px;
-      color: #777;
-    }
-
+    body { font-family: sans-serif; padding: 20px; }
+    #lostItemsList div { border: 1px solid #ccc; padding: 10px; margin: 10px 0; cursor: pointer; }
+    #chat { border: 1px solid #000; padding: 10px; max-height: 200px; overflow-y: auto; }
   </style>
 </head>
 <body>
-  <h1>경북여고 분실물 등록</h1>
-  <label for="itemName">물품명</label>
-  <input type="text" id="itemName" placeholder="분실물 이름을 입력하세요" />
-
-  <label for="itemDesc">설명</label>
-  <input type="text" id="itemDesc" placeholder="간단한 설명" />
-
-  <button onclick="addLostItem()">등록하기</button>
+  <h2>경북여고 분실물 등록</h2>
+  <input type="text" id="itemName" placeholder="물건 이름"><br>
+  <input type="text" id="itemDesc" placeholder="설명"><br>
+  <button onclick="addItem()">등록</button>
 
   <h2>경북여고 분실물 목록</h2>
-  <ul id="lostList"></ul>
+  <div id="lostItemsList"></div>
+
+  <h2 id="chatHeader" style="display:none">💬 채팅방</h2>
+  <div id="chat" style="display:none"></div>
+  <input type="text" id="chatInput" placeholder="메시지 입력" style="display:none">
+  <button onclick="sendMessage()" style="display:none" id="sendBtn">보내기</button>
+  <button onclick="deleteItem()" style="display:none" id="deleteBtn">삭제하기</button>
 
   <script>
-    const lostItems = [];
+    // Firebase 설정
+    const firebaseConfig = {
+      apiKey: "AIzaSyD83_ECFYW3D52j50_-Xs-lDnH-wijaAJI",
+      authDomain: "boyeong-b6c78.firebaseapp.com",
+      databaseURL: "https://boyeong-b6c78-default-rtdb.firebaseio.com",
+      projectId: "boyeong-b6c78", 
+      storageBucket: "boyeong-b6c78.appspot.com",
+      messagingSenderId: "164014203208",
+      appId: "1:164014203208:web:ed53b3a3247afaf572d37d",
+      measurementId: "G-DML7YW7DH0"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-    function addLostItem() {
-      const nameInput = document.getElementById('itemName');
-      const descInput = document.getElementById('itemDesc');
-      const name = nameInput.value.trim();
-      const desc = descInput.value.trim();
-
-      if (!name) {
-        alert('물품명을 입력해주세요!');
+    // 등록 기능
+    function addItem() {
+      const name = document.getElementById('itemName').value;
+      const desc = document.getElementById('itemDesc').value;
+      if (!name.trim() || !desc.trim()) {
+        alert('이름과 설명을 입력해주세요!');
         return;
       }
-
-      lostItems.push({ name, desc });
-      nameInput.value = '';
-      descInput.value = '';
-      renderList();
+      const newRef = db.ref('lostItems').push();
+      newRef.set({ name, desc });
+      document.getElementById('itemName').value = '';
+      document.getElementById('itemDesc').value = '';
     }
 
-    function renderList() {
-      const list = document.getElementById('lostList');
-      list.innerHTML = '';
+    // 목록 불러오기
+    const listDiv = document.getElementById('lostItemsList');
+    db.ref('lostItems').on('value', snapshot => {
+      listDiv.innerHTML = '';
+      snapshot.forEach(child => {
+        const data = child.val();
+        const div = document.createElement('div');
+        div.textContent = `${data.name} - ${data.desc}`;
+        div.onclick = () => openChat(child.key, data.name);
+        listDiv.appendChild(div);
+      });
+    });
 
-      lostItems.forEach((item, idx) => {
-        const li = document.createElement('li');
-        li.textContent = `${idx + 1}. ${item.name} - ${item.desc}`;
-        list.appendChild(li);
+    let currentItemId = null;
+
+    // 채팅 열기
+    function openChat(itemId, itemName) {
+      currentItemId = itemId;
+      document.getElementById('chatHeader').textContent = `💬 ${itemName} - 채팅방`;
+      document.getElementById('chat').style.display = 'block';
+      document.getElementById('chatInput').style.display = 'inline';
+      document.getElementById('sendBtn').style.display = 'inline';
+      document.getElementById('deleteBtn').style.display = 'inline';
+
+      db.ref('chats/' + itemId).off();
+      db.ref('chats/' + itemId).on('value', snapshot => {
+        const chatDiv = document.getElementById('chat');
+        chatDiv.innerHTML = '';
+        snapshot.forEach(child => {
+          const p = document.createElement('p');
+          p.textContent = child.val();
+          chatDiv.appendChild(p);
+        });
       });
     }
+
+    // 메시지 보내기
+    function sendMessage() {
+      const msg = document.getElementById('chatInput').value;
+      if (!msg.trim()) return;
+      db.ref('chats/' + currentItemId).push(msg);
+      document.getElementById('chatInput').value = '';
+    }
+
+    // 삭제 기능
+    function deleteItem() {
+      if (!confirm('정말 삭제하시겠습니까?')) return;
+      db.ref('lostItems/' + currentItemId).remove();
+      db.ref('chats/' + currentItemId).remove();
+      alert('삭제되었습니다.');
+      document.getElementById('chat').style.display = 'none';
+      document.getElementById('chatInput').style.display = 'none';
+      document.getElementById('sendBtn').style.display = 'none';
+      document.getElementById('deleteBtn').style.display = 'none';
+      document.getElementById('chatHeader').style.display = 'none';
+    }
   </script>
-  <footer>
-    <p>30906 김보영</p>
-  </footer>
 </body>
 </html>
+
