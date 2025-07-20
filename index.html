@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>분실물 관리 앱</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+    label, input, button { display: block; margin: 10px 0; }
+    ul { padding-left: 20px; }
+  </style>
+</head>
+<body>
+  <h1>분실물 등록</h1>
+  <label for="itemName">물품명</label>
+  <input type="text" id="itemName" placeholder="분실물 이름을 입력하세요" />
+
+  <label for="itemDesc">설명</label>
+  <input type="text" id="itemDesc" placeholder="간단한 설명" />
+
+  <button onclick="addLostItem()">등록하기</button>
+
+  <h2>분실물 목록</h2>
+  <ul id="lostList"></ul>
+
+  <script>
+    const lostItems = [];
+
+    function addLostItem() {
+      const nameInput = document.getElementById('itemName');
+      const descInput = document.getElementById('itemDesc');
+      const name = nameInput.value.trim();
+      const desc = descInput.value.trim();
+
+      if (!name) {
+        alert('물품명을 입력해주세요!');
+        return;
+      }
+
+      lostItems.push({ name, desc });
+      nameInput.value = '';
+      descInput.value = '';
+      renderList();
+    }
+
+    function renderList() {
+      const list = document.getElementById('lostList');
+      list.innerHTML = '';
+
+      lostItems.forEach((item, idx) => {
+        const li = document.createElement('li');
+        li.textContent = `${idx + 1}. ${item.name} - ${item.desc}`;
+        list.appendChild(li);
+      });
+    }
+  </script>
+</body>
+</html>
